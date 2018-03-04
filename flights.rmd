@@ -1,0 +1,192 @@
+---
+title: "DATA 607 - Week 5 Assignment"
+author: "Brian K. Liles"
+date: "March 3, 2018"
+output: html_document
+---
+
+#Tidying and Transforming Data
+Import the flights csv file which describes arrivals and delays for two airlines across five destinations. The CSV file was created and exported in MySQL Workbench 6.3 CE.
+
+#Load libraries
+```{r}
+library(tidyverse)
+library(tidyr)
+library(dplyr)
+library(knitr)
+```
+#Read the flights csv file
+```{r}
+flights <- read_csv("https://raw.githubusercontent.com/LilesB/DATA-607-5WK-Assignment/master/flights.csv")
+glimpse(flights)
+```
+The **flights** tibble has 4 observations and 8 variables. In order to create a clean environment, we will remove the AID primary key variable and then use the **kable** function to display the contents of the tibble.
+```{r}
+flights <- subset(flights,select=-AID)
+kable(flights)
+```
+Use the **gather()** function to condense the original 4 observations & 7 variable tibble to a tibble with 20 observations & 4 variables and create a tibble entitled **flights_gather**
+```{r}
+flights_gather <- flights %>% gather(Destination,NumFlights,-Airline,-FlightStatus)
+kable(flights_gather)
+```
+Next, we use the **spread()** function to condense **flights_long** to a tibble with 10 observations & 4 variables named **flights_spread**
+
+```{r}
+flights_spread <- flights_gather %>% spread(FlightStatus,NumFlights)
+kable(flights_spread)
+```
+#Analyze the data
+In order to analyze the data first the **glimpse** function was used in order to see if the **delayed** and **on time** variables were integers. 
+
+After utilizing the **spread()** function we see that **on time** needs to be renamed which was done immediately after the **glimpse** function.
+```{r}
+glimpse(flights_spread)
+```
+
+```{r}
+colnames (flights_spread) <- c("Airline", "Destination", "Delayed","OnTime")
+names(flights_spread)
+```
+Next we create a variable entitled **TotFlights** which adds the **Delayed** and **OnTime** variables.
+```{r}
+flights_spread <- flights_spread %>% mutate(TotFlights = Delayed + OnTime)
+flights_spread %>% select(Airline,Destination,TotFlights)
+```
+Next we create a variable entitled **DelayedRatio** which divides the **Delayed** variable by **TotFlights**
+```{r}
+flights_spread <- flights_spread %>% mutate(DelayedRatio = Delayed/TotFlights) 
+flights_spread %>% select(Airline,Destination,DelayedRatio)
+```
+Next we create a variable entitled **OnTimeRatio** which divides the **OnTime** variable by **TotFlights**
+```{r}
+flights_spread <- flights_spread %>% mutate(OnTimeRatio = OnTime/TotFlights) 
+flights_spread %>% select(Airline,Destination,OnTimeRatio)
+```
+#Analysis
+
+##Top Five Airline/Destination combo - Delayed Flights
+```{r}
+LowDel5 <- arrange(flights_spread, Delayed)
+LowDel5 %>% select(Airline:Delayed) %>% slice(1:5)
+```
+##Bottom Five Airline/Destination combo - Delayed Flights
+```{r}
+TopDel5 <- arrange(flights_spread,desc (Delayed))
+TopDel5 %>% select(Airline:Delayed) %>% slice(1:5)
+```
+##Bottom Five Airline/Destination combo - On Time Flights
+```{r}
+LowOnTime5 <- arrange(flights_spread, OnTime)
+LowOnTime5 %>% select(Airline,Destination,OnTime) %>%
+slice(1:5)
+```
+##Top Five Airline/Destination combo - On Time Flights
+```{r}
+TopOnTime5 <- arrange(flights_spread, desc(OnTime))
+TopOnTime5 %>% select(Airline,Destination,OnTime) %>%
+slice(1:5)
+```
+##Bottom Five Airline/Destination combo - Total Number of Flight
+```{r}
+LowTotFlights5 <- arrange(flights_spread, TotFlights)
+LowTotFlights5 %>% select(Airline,Destination,TotFlights) %>%
+slice(1:5)
+```
+##Top Five Airline/Destination combo - Total Number of Flight
+```{r}
+TopTotFlights5 <- arrange(flights_spread, desc(TotFlights))
+TopTotFlights5 %>% select(Airline,Destination,TotFlights) %>%
+slice(1:5)
+```
+##Top Five Airline/Destination combo - Delayed Ratio
+```{r}
+LowDelRats5 <- arrange(flights_spread, DelayedRatio)
+LowDelRats5 %>% select(Airline,Destination,DelayedRatio) %>%
+slice(1:5)
+```
+##Bottom Five Airline/Destination combo - Delayed Ratio
+```{r}
+TopDelRats5 <- arrange(flights_spread, desc(DelayedRatio))
+TopDelRats5 %>% select(Airline,Destination,DelayedRatio) %>%
+slice(1:5)
+```
+##Bottom Five Airline/Destination combo - On Time Ratio
+```{r}
+LowOnTimeRat5 <- arrange(flights_spread, OnTimeRatio)
+LowOnTimeRat5 %>% select(Airline,Destination,OnTimeRatio) %>%
+slice(1:5)
+```
+##Top Five Airline/Destination combo - On Time Ratio
+```{r}
+TopOnTimeRat5 <- arrange(flights_spread, desc(OnTimeRatio))
+TopOnTimeRat5 %>% select(Airline,Destination,OnTimeRatio) %>%
+slice(1:5)
+```
+##Delayed Data Element
+```{r}
+delayed <- flights_spread %>% group_by(Airline) %>% summarise(DelayedMean=mean(Delayed), DelayedSD=sd(Delayed), DelayedMed=median(Delayed))
+delayed
+```
+```{r}
+boxplot(flights_spread$Delayed ~ flights_spread$Airline, main = "Delayed Flights Box Plot ALASKA / AM WEST Airlines", xlab = "Airlines", ylab = "Number of Delayed Flights", col = c("yellow","beige"))
+```
+```{r}
+barplot(delayed$DelayedMean, horiz=FALSE, col = c("yellow","beige"),main="ALASKA / AM West: Delayed Flights Mean", names.arg=c("ALASKA","AM WEST"), xlab = "Airlines")
+```
+##On Time Data Element
+```{r}
+on_time <- flights_spread %>% group_by(Airline) %>% summarise(OnTimeMean=mean(OnTime), OnTimeSD=sd(OnTime), OnTimeMed=median(OnTime))
+on_time
+```
+```{r}
+boxplot(flights_spread$OnTime ~ flights_spread$Airline, main = "On Time Flights Box Plot ALASKA / AM WEST Airlines", xlab = "Airlines", ylab = "Number of On Time Flights", col = c("yellow","beige"))
+```
+```{r}
+barplot(on_time$OnTimeMed, horiz=FALSE, col = c("yellow","beige"),main="ALASKA / AM West: On Time Flights Median", names.arg=c("ALASKA","AM WEST"), xlab = "Airlines")
+```
+##Total Flights Data Element
+```{r}
+total_flights <- flights_spread %>% group_by(Airline) %>% summarise(TotFlightsMean=mean(TotFlights), TotFlightsSD=sd(TotFlights), TotFlightsMed=median(TotFlights))
+total_flights
+```
+```{r}
+boxplot(flights_spread$TotFlights ~ flights_spread$Airline, main = "Total Flights Box Plot ALASKA / AM WEST Airlines", xlab = "Airlines", ylab = "Number of Flights", col = c("yellow","beige"))
+```
+```{r}
+barplot(total_flights$TotFlightsMed, horiz=FALSE, col = c("yellow","beige"),main="ALASKA / AM West: Total Number of  Flights Median", names.arg=c("ALASKA","AM WEST"), xlab = "Airlines")
+```
+##Delayed Ratio Data Element
+```{r}
+delayed_ratio <- flights_spread %>% group_by(Airline) %>% summarise(DelRatMean=mean(DelayedRatio), DelRatSD=sd(DelayedRatio), DelRatMed=median(DelayedRatio))
+delayed_ratio
+```
+```{r}
+boxplot(flights_spread$DelayedRatio ~ flights_spread$Airline, main = "Delayed Ratio Box Plot ALASKA / AM WEST Airlines", xlab = "Airlines", ylab = "Number of Flights", col = c("yellow","beige"))
+```
+```{r}
+round(delayed_ratio$DelRatMean,digits = 2)
+barplot(delayed_ratio$DelRatMean, horiz=FALSE, col = c("yellow","beige"),main="ALASKA / AM West: Delayed Ratio", names.arg=c("ALASKA","AM WEST"), xlab = "Airlines")
+```
+##On Time Ratio Data Element
+```{r}
+ontime_ratio <- flights_spread %>% group_by(Airline) %>% summarise(OnTRatMean=mean(OnTimeRatio), OnTRatSD=sd(OnTimeRatio), OnTRatMed=median(OnTimeRatio))
+ontime_ratio
+```
+```{r}
+boxplot(flights_spread$OnTimeRatio ~ flights_spread$Airline, main = "On Time Ratio Box Plot ALASKA / AM WEST Airlines", xlab = "Airlines", ylab = "Number of Flights", col = c("yellow","beige"))
+```
+```{r}
+round(ontime_ratio$OnTRatMed,digits = 2)
+barplot(ontime_ratio$OnTRatMed, horiz=FALSE, col = c("yellow","beige"),main="ALASKA / AM West: Delayed Ratio Median", names.arg=c("ALASKA","AM WEST"), xlab = "Airlines")
+```
+Creating the **TotFlights**,**DelayedRatio**, and **OnTimeRatio** allows us to explore deeper and see how the the airlines have a close median of on time and delayed flights.
+
+
+
+
+
+
+
+
+
